@@ -1,3 +1,10 @@
+# homebridge-ewelink-krasnov
+
+Fork of https://github.com/howanghk/homebridge-ewelink, that include:
+
+1. Fix CH3 and CH4 entries for T1 C2 device.
+1. Fix spelling mistakes.
+
 # homebridge-ewelink-max
 
 Homebridge plugin to control Sonoff relays with OEM firmware. It uses the same API as the iOS app to communicate with your devices.

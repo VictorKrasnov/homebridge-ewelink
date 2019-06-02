@@ -129,7 +129,7 @@ function eWeLink(log, config, api) {
                             deviceId = deviceId.replace('CH'+accessory.context.channel,"");
                         }
 
-                        if (platform.devicesFromApi.has(deviceId)) {
+                        if (platform.devicesFromApi.has(deviceId) && (accessory.context.switches <= 1 || accessory.context.channel <= accessory.context.switches)) {
                             platform.log('Device [%s] is regeistered with API. Nothing to do.', accessory.displayName);
                         } else {
                             platform.log('Device [%s], ID : [%s] was not present in the response from the API. It will be removed.', accessory.displayName, accessory.UUID);
@@ -228,7 +228,7 @@ function eWeLink(log, config, api) {
                             return;
                         }
 
-                        platform.log("WebSocket messge received: ", message);
+                        platform.log("WebSocket message received: ", message);
 
                         let json;
                         try {
@@ -411,6 +411,12 @@ eWeLink.prototype.addAccessory = function(device, deviceId = null, services = { 
     } catch (e) {
         this.log("Problem accessory Accessory with Name : [%s], Manufacturer : [%s], Error : [%s], Is Online : [%s], API Key: [%s] ", device.name + (channel ? ' CH ' + channel : ''), device.productModel, e, device.online, device.apikey);
     }
+    
+    let switchesCount = this.getDeviceChannelCount(device);
+	if (channel > switchesCount) {
+		this.log("Can't add [%s], because device [%s] has only [%s] switches.", device.name + (channel ? ' CH ' + channel : ''), device.productModel, switchesCount);
+		return;
+	}
 
     const accessory = new Accessory(device.name + (channel ? ' CH ' + channel : ''), UUIDGen.generate((deviceId ? deviceId : device.deviceid).toString()));
 
