@@ -311,6 +311,10 @@ function eWeLink(log, config, api) {
                         }
                     };
 
+                    platform.wsc.onerror = function (e) {
+                        platform.log("WebSocket error. [%s]", e);
+                    }
+
                 }); // End WebSocket
 
             }.bind(this)); // End login
@@ -531,11 +535,12 @@ eWeLink.prototype.updatePowerStateCharacteristic = function(deviceId, state, dev
         isOn = true;
     }
 
-    platform.log("Updating recorded Characteristic.On for [%s] to [%s]. No request will be sent to the device.", accessory.displayName, isOn);
-
-    accessory.getService(Service.Switch)
-        .setCharacteristic(Characteristic.On, isOn);
-
+    let currentState = accessory.getService(Service.Switch).getCharacteristic(Characteristic.On).value;
+    if (currentState !== isOn) {
+        platform.log("Updating recorded Characteristic.On for [%s] from [%s] to [%s]. No request will be sent to the device.", accessory.displayName, currentState, isOn);
+        accessory.getService(Service.Switch)
+            .setCharacteristic(Characteristic.On, isOn);
+    }
 };
 
 eWeLink.prototype.updateCurrentTemperatureCharacteristic = function(deviceId, state, device = null, channel = null) {
@@ -550,6 +555,11 @@ eWeLink.prototype.updateCurrentTemperatureCharacteristic = function(deviceId, st
     if(typeof accessory === 'undefined' && device) {
         platform.addAccessory(device, deviceId);
         accessory = platform.accessories.get(deviceId);
+    }
+
+    if (!accessory) {
+        platform.log("Error updating non-exist accessory with deviceId [%s].", deviceId);
+        return;
     }
 
     // platform.log(JSON.stringify(device,null,2));
@@ -909,16 +919,12 @@ eWeLink.prototype.setPowerState = function(accessory, isOn, callback) {
     payload.sequence = platform.getSequence();
 
     let string = JSON.stringify(payload);
-    // platform.log( string );
+    platform.log( string );
 
     if (platform.isSocketOpen) {
 
         setTimeout(function() {
-            platform.wsc.send(string);
-
-            // TODO Here we need to wait for the response to the socket
-
-            callback();
+            platform.wsc.send(string).then(callback());
         }, 1);
 
     } else {
@@ -1203,11 +1209,19 @@ WebSocketClient.prototype.open = function(url) {
     });
 };
 WebSocketClient.prototype.send = function(data, option) {
-    try {
-        this.instance.send(data, option);
-    } catch (e) {
-        this.instance.emit('error', e);
-    }
+    let socket = this.instance;
+    return new Promise(function(resolve, reject) {
+        //send message via websockets
+        if (socket.readyState === socket.OPEN) {
+            try {
+                socket.send(data);
+            } catch (e) {
+                socket.emit('error', e);
+            }
+        } else {
+            reject('Websocket connection is closed');
+        }
+    });
 };
 WebSocketClient.prototype.reconnect = function(e) {
     // console.log(`WebSocketClient: retry in ${this.autoReconnectInterval}ms`, e);
